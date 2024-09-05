@@ -6,7 +6,7 @@ import smtplib
 import email
 import os
 import mimetypes
-import logging
+# import logging
 
 
 from typing import  Any
@@ -26,10 +26,14 @@ def reconnect_decorator(func):
         try:
             return func(*args, **kwargs)
         except Exception as e:
-            logging.error("Connect ERROR", str(e))
-            args[0].connect()
+            counter_post = 0
+            while counter_post < args[0].counter_attempt:
+                check = args[0].connect()
+                if check is True:
+                    break
             return func(*args, **kwargs)
     return wrapper
+
 
 @dataclass
 class EmailsPost:
@@ -45,29 +49,33 @@ class EmailsPost:
 
     mail_box: Any = None
     mail: Any = None
+    list_uid_email: Any = None
 
     timeout: int = 60
     counter_attempt: int = 10
 
-    def connect(self) -> bool:
-        """Соединение с почтовым ящиком"""
-        counter_post = 0
-        while counter_post < 10:
-            try:
-                counter_post += 1
-                self.mail = imaplib.IMAP4_SSL(self.imap_server, timeout=60)
-                break
-            except Exception as e:
-                logging.error("Connect ERROR", str(e))
-        result = list(self.mail.login(self.email_login, self.email_password))
 
-        if "OK" in result:
-            return True
-        else:
-            return False
-
-    def check_empty(self):
-        """Проверяет есть ли непрочитанные сообщения"""
+    def connect(self) -> bool | tuple:
+        """Инициализирует соединение с почтовым ящиком"""
+        try:
+            counter_post = 0
+            while counter_post < self.counter_attempt:
+                try:
+                    counter_post += 1
+                    self.mail = imaplib.IMAP4_SSL(self.imap_server, timeout=self.timeout)
+                    break
+                except Exception as e:
+                    pass
+                    # logging.error("Connect ERROR", str(e))
+            result = self.mail.login(self.email_login, self.email_password)
+            if "OK" in result:
+                return True
+            else:
+                return False, str()
+        except Exception as e:
+            return False, e
+    def check_empty(self) -> bool:
+        """Проверяет пуста ли выбранная папка"""
         if len(self.list_uid_email) == 0:
             return True
         return False
@@ -80,30 +88,19 @@ class EmailsPost:
             print("GetIdLateEmail ERROR", str(e))
 
     @reconnect_decorator
-    def update_email(self, filtr="UNSEEN"):
-        """Обновляет список непрочитанных сообщений"""
-        # counter_post = 0
-        self.connect()
-        # while counter_post < 10:
-        #     try:
-        #         counter_post += 1
-        #         self.mail = imaplib.IMAP4_SSL(self.imap_server, timeout=60)
-        #         break
-        #     except Exception as e:
-        #         logging.error("UpdateUnreadEmail ERROR:", str(e))
-        #         counter_post += 1
-
-        # self.mail.login(self.email_login, self.email_password)
-        # print(self.mail.list())
+    def update_email(self, fltr: str="UNSEEN"):
+        """Обновляет список сообщений, по умолчанию - непрочинанных"""
+        # self.connect()
         self.mail.select(self.mail_box)
-        _, data = self.mail.uid("search", None, filtr)
+        _, data = self.mail.uid("search", None, fltr)
         self.list_uid_email = data[0].split()
 
-    def get_folders(self) -> tuple[str, bytes]:
+    @reconnect_decorator
+    def get_folders(self) -> tuple[str, list[bytes]]:
         return self.mail.list()
 
     @reconnect_decorator
-    def select_folders(self, folders_name: str) -> None:
+    def select_folders(self, folders_name: str='inbox') -> None:
         self.mail_box = folders_name
         if self.mail is None:
             self.connect()
@@ -224,7 +221,7 @@ class EmailsPost:
             try:
                 counter_post += 1
                 smpt_obj = smtplib.SMTP_SSL(
-                    self.smtp_server, self.smtp_port, timeout=60
+                    self.smtp_server, self.smtp_port, timeout=self.timeout
                 )
                 break
             except Exception as e:
