@@ -9,7 +9,7 @@ import mimetypes
 # import logging
 
 
-from typing import  Any
+from typing import Any
 from dataclasses import dataclass
 
 from email.mime.multipart import MIMEMultipart
@@ -32,6 +32,7 @@ def reconnect_decorator(func):
                 if check is True:
                     break
             return func(*args, **kwargs)
+
     return wrapper
 
 
@@ -54,7 +55,6 @@ class EmailsPost:
     timeout: int = 60
     counter_attempt: int = 10
 
-
     def connect(self) -> bool | tuple:
         """Инициализирует соединение с почтовым ящиком"""
         try:
@@ -74,21 +74,40 @@ class EmailsPost:
                 return False, str()
         except Exception as e:
             return False, e
-    def check_empty(self) -> bool:
-        """Проверяет пуста ли выбранная папка"""
+
+    @property
+    def empty(self) -> bool:
+        """
+        Проверяет пустая ли выбранная папка
+        Returns:
+            bool: истина, если папка пуста
+        """
         if len(self.list_uid_email) == 0:
             return True
         return False
 
-    def get_id_late_email(self):
-        """Возвращает uid последнего непрочитанного сообщения"""
+    def __len__(self):
+        if self.list_uid_email is None:
+            return 0
+        return len(self.list_uid_email)
+
+    @reconnect_decorator
+    def get_uid_last_email(self) -> bytes:
+        """Возвращает uid последнего непрочитанного сообщения
+
+        Returns:
+            bytes: содержит число-идентификатор сообщения
+        """
         try:
-            return self.list_uid_email[-1]
+            if len(self.list_uid_email):
+                return self.list_uid_email[-1]
+            else:
+                return 0
         except Exception as e:
             print("GetIdLateEmail ERROR", str(e))
 
     @reconnect_decorator
-    def update_email(self, fltr: str="UNSEEN"):
+    def update_email(self, fltr: str = "UNSEEN"):
         """Обновляет список сообщений, по умолчанию - непрочинанных"""
         # self.connect()
         self.mail.select(self.mail_box)
@@ -100,20 +119,27 @@ class EmailsPost:
         return self.mail.list()
 
     @reconnect_decorator
-    def select_folders(self, folders_name: str='inbox') -> None:
+    def select_folders(self, folders_name: str = 'inbox') -> None:
         self.mail_box = folders_name
         if self.mail is None:
             self.connect()
         self.mail.select(self.mail_box)
 
-    def get_count_unread_email(self):
-        if self.list_uid_email is None:
-            self.update_email()
-        return len(self.list_uid_email)
+    # def get_count_unread_email(self):
+    #     if self.list_uid_email is None:
+    #         self.update_email()
+    #     return len(self.list_uid_email)
 
-    def get_email(self, id: bytes):
-        """Получает сообщение по id"""
-        _, data = self.mail.uid("fetch", id, "(RFC822)")
+    def get_email(self, email_uid: bytes) -> Message:
+        """Получает сообщение по id
+
+        Args:
+            email_uid: для получения используется метод update_email
+
+        Returns:
+            Message: базовый класс email из email.message
+        """
+        _, data = self.mail.uid("fetch", email_uid, "(RFC822)")
         raw_email = data[0][1]
         try:
             return email.message_from_string(raw_email)
@@ -182,7 +208,7 @@ class EmailsPost:
         return body
 
     def create_message(
-        self, email_from: str, email_to: str, body: str, subject: str, filepath: str
+            self, email_from: str, email_to: str, body: str, subject: str, filepath: str
     ):
         """Создает сообщение для отправки"""
         msg = MIMEMultipart()

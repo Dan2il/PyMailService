@@ -20,6 +20,18 @@ def main():
         post.update_email(fltr="UNSEEN")
         print(post.list_uid_email)
 
+        uid = post.get_uid_last_email()
+
+        email = post.get_email(uid)
+        print(type(email))
+        print(email)
+
+
+        print(type(uid))
+        print("uid_last", uid)
+
+
+
     else:
         print(check)
 

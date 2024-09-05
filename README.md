@@ -77,3 +77,16 @@ post.update_email(fltr="UNSEEN")
 post.update_email()
 ```
 Данный вызов получит запишет в переменную self.list_uid_email uid всех непрочитанных сообщений в данной папке
+
+Получить электронное письмо возможно следующим вызовом:
+```commandline
+email = post.get_email(uid)
+```
+uid можно получить:
+```commandline
+uid = post.get_uid_last_email()
+```
+Данный способ возвращает uid последнего письма или 0, в случае их отсутствия
+
+
+
