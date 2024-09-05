@@ -12,10 +12,17 @@ def main():
         imap_port=993,
         smtp_port=465,
     )
-    print(post.connect())
-    post.select_folders("inbox")
-    post.update_email()
-    print(post.list_uid_email)
+
+    check = post.connect()
+    if check is True:
+
+        post.select_folders()
+        post.update_email(fltr="UNSEEN")
+        print(post.list_uid_email)
+
+    else:
+        print(check)
+
 
 
 if __name__ == "__main__":
