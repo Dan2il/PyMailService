@@ -6,8 +6,7 @@ import smtplib
 import email
 import os
 import mimetypes
-# import logging
-
+import re
 
 from typing import Any
 from dataclasses import dataclass
@@ -16,10 +15,10 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.mime.base import MIMEBase
 from email.message import Message
+from email.header import Header
 
 from email.header import make_header
 from email.header import decode_header
-
 
 def reconnect_decorator(func):
     def wrapper(*args, **kwargs):
@@ -28,7 +27,7 @@ def reconnect_decorator(func):
         except Exception as e:
             counter_post = 0
             while counter_post < args[0].counter_attempt:
-                check = args[0].connect()
+                check = args[0].connect
                 if check is True:
                     break
             return func(*args, **kwargs)
@@ -55,8 +54,15 @@ class EmailsPost:
     timeout: int = 60
     counter_attempt: int = 10
 
+    @property
     def connect(self) -> bool | tuple:
-        """Инициализирует соединение с почтовым ящиком"""
+        """Инициализирует соединение с почтовым ящиком
+
+        Returns:
+            object:
+                True, если подключение успешно, иначе
+                Кортеж, содержащий False и исключение, если оно возникло, в процессе выполнения
+        """
         try:
             counter_post = 0
             while counter_post < self.counter_attempt:
@@ -122,7 +128,7 @@ class EmailsPost:
     def select_folders(self, folders_name: str = 'inbox') -> None:
         self.mail_box = folders_name
         if self.mail is None:
-            self.connect()
+            self.connect
         self.mail.select(self.mail_box)
 
     # def get_count_unread_email(self):
@@ -134,7 +140,7 @@ class EmailsPost:
         """Получает сообщение по id
 
         Args:
-            email_uid: для получения используется метод update_email
+            email_uid: для получения см метод update_email или get_uid_last_email
 
         Returns:
             Message: базовый класс email из email.message
@@ -146,70 +152,58 @@ class EmailsPost:
         except TypeError:
             return email.message_from_bytes(raw_email)
 
-    def get_from_email(self, email_message: Message):
+    def get_from_email(self, email_message: Message) -> Header:
         """Возвращает email отправителя"""
-        email_address = make_header(decode_header(email_message["From"]))
-        email_address = str(email_address)
-        pos_left_br = email_address.find("<") + 1
-        pos_rigth_br = email_address.find(">")
-        if pos_rigth_br == -1:
-            return email_address
-        return email_address[pos_left_br:pos_rigth_br]
+        return make_header(decode_header(email_message["From"]))
 
-    def get_subject_email(self, email_message: Message):
+    def get_subject_email(self, email_message: Message) -> Header:
         """Возвращает тему письма"""
-        subj = email_message["Subject"]
-        if str(subj) != "None":
-            return make_header(decode_header(email_message["Subject"]))
-        return subj
+        return make_header(decode_header(email_message["Subject"]))
 
-    def get_date_email(self, email_message: Message):
+    def get_date_email(self, email_message: Message) -> Header:
         """Возвращает дату письма"""
-        date = email_message["date"]
-        if str(date) != "None":
-            return make_header(decode_header(email_message["Date"]))
-        return date
+        return make_header(decode_header(email_message["Date"]))
 
-    def get_file(self, email_message: Message, way_save: str):
-        """Возвращает вложенный файл в письмо и сохраняет в way_save"""
-        filename = ""
+    def get_file(self, email_message: Message, way_save: str = "") -> list[str]:
+        """Сохраняет вложенный в письмо файл в way_save
+
+        Args:
+            way_save: путь, куда будут сохранены файлы
+
+        Returns:
+            object: лист с содержащий пути, куда были сохранены файлы
+        """
+        result = []
+        if len(way_save) and way_save[-1] != '/':
+            way_save += '/'
         for part in email_message.walk():
             if "application" in part.get_content_type():
-                bffr_filename = part.get_filename()
-                bffr_filename = str(make_header(decode_header(bffr_filename)))
-                bffr_filename = bffr_filename.lower()
-                if ".xls" in bffr_filename or ".xlsx" in bffr_filename:
-                    filename = bffr_filename
-                    if not (filename):
-                        filename = "test.txt"
-                    fp = open(os.path.join(way_save, filename), "wb")
-                    fp.write(part.get_payload(decode=1))
-                    fp.close
-                    break
-                else:
-                    continue
-        return filename
+                filename = way_save + str(make_header(decode_header(part.get_filename())))
+                fp = open(os.path.join(way_save, way_save + filename), "wb")
+                fp.write(part.get_payload(decode=True))
+                fp.close()
+                result.append(filename)
+        return result
 
-    def get_body(self, email_message: Message):
+    def get_body(self, email_message: Message) -> str:
         """Возвращает тело письма"""
         body = ""
         if email_message.is_multipart():
             for part in email_message.walk():
                 try:
                     body += part.get_payload(decode=True).decode()
-                except Exception as e:
-                    logging.error("GetBody ERROR: " + str(e))
+                except:
+                    pass
         else:
             try:
                 body = email_message.get_payload(decode=True).decode()
-            except Exception as e:
-                logging.error("GetBody ERROR: " + str(e))
-                body = ""
+            except:
+                pass
         return body
 
     def create_message(
-            self, email_from: str, email_to: str, body: str, subject: str, filepath: str
-    ):
+            self, email_from: str, email_to: str, body: str, subject: str, filepath: str=None
+    ) -> MIMEMultipart:
         """Создает сообщение для отправки"""
         msg = MIMEMultipart()
         msg["From"] = email_from
@@ -243,15 +237,10 @@ class EmailsPost:
     def send_email(self, msg: MIMEMultipart):
         """Отправляет сообщение"""
         counter_post = 0
-        while True:
-            try:
-                counter_post += 1
-                smpt_obj = smtplib.SMTP_SSL(
-                    self.smtp_server, self.smtp_port, timeout=self.timeout
-                )
-                break
-            except Exception as e:
-                logging.error("SendEmail ERROR", str(e))
+        counter_post += 1
+        smpt_obj = smtplib.SMTP_SSL(
+            self.smtp_server, self.smtp_port, timeout=self.timeout
+        )
         smpt_obj.login(self.email_login, self.email_password)
         smpt_obj.send_message(msg)
         smpt_obj.close()

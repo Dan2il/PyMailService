@@ -13,24 +13,26 @@ def main():
         smtp_port=465,
     )
 
-    check = post.connect()
+    check = post.connect
     if check is True:
 
         post.select_folders()
         post.update_email(fltr="UNSEEN")
-        print(post.list_uid_email)
-
         uid = post.get_uid_last_email()
-
         email = post.get_email(uid)
-        print(type(email))
-        print(email)
+
+        from_email = post.get_from_email(email)
+        subject_email = post.get_subject_email(email)
+        date_email = post.get_date_email(email)
+        file_way = post.get_file(email)
+        body = post.get_body(email)
 
 
-        print(type(uid))
-        print("uid_last", uid)
-
-
+        print(f"from_email: {from_email}, {type(from_email)}")
+        print(f"subject_email: {subject_email}, {type(subject_email)}")
+        print(f"date_email: {date_email}, {type(date_email)}")
+        print(f"file_way: {file_way}, {type(file_way)}")
+        print(f"body: {len(str(body))}, {type(body)}")
 
     else:
         print(check)
