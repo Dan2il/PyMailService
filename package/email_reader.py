@@ -6,7 +6,6 @@ import smtplib
 import email
 import os
 import mimetypes
-import re
 
 from typing import Any
 from dataclasses import dataclass

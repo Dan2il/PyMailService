@@ -1,6 +1,7 @@
-from setting import LOGIN_EMAIL, PASSWORD_EMAIL
+from email_reader import EmailsPost
 
-from email_reader.email_reader import EmailsPost
+LOGIN_EMAIL = "daniilgr97@yandex.ru"
+PASSWORD_EMAIL = "nqarxvjbavwyqpwk"
 
 
 def main():
@@ -26,7 +27,6 @@ def main():
         date_email = post.get_date_email(email)
         file_way = post.get_file(email)
         body = post.get_body(email)
-
 
         print(f"from_email: {from_email}, {type(from_email)}")
         print(f"subject_email: {subject_email}, {type(subject_email)}")
