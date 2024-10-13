@@ -1,8 +1,3 @@
-from email_reader import EmailsPost
-
-LOGIN_EMAIL = "daniilgr97@yandex.ru"
-PASSWORD_EMAIL = "nqarxvjbavwyqpwk"
-
 
 def main():
     post = EmailsPost(
